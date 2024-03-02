@@ -20,11 +20,16 @@
    - 1-4 LJ interactions and CHRG scaling must be done by the user within the MD program
 """
 
+import os 
 import sys
-sys.path.append('./modules')
-from top import *
 import numpy as np
 import argparse as arg
+
+# import some parsing modules
+current_dir = os.path.dirname(os.path.abspath(__file__))
+module_dir = os.path.join(current_dir,  'modules')
+sys.path.append(module_dir)
+from top import *
 
 # Conversion units #
 kcal2kj = 4.184
@@ -195,13 +200,19 @@ def _readimpropers(t,dict_atom_types):
         psi0 = imp.gromacs["param"][0]["psi0"]
         if psi0 == 180.0:
             psiphase = True
+        elif psi0 < 0.0:
+            psiphase = True
 
         print(fmt_dihed % (i, j, k, l, kd, psi0, str(dict_atom_types[i]), str(dict_atom_types[j]), str(dict_atom_types[k]), str(dict_atom_types[l])))
         temp = [str(dict_atom_types[i]), str(dict_atom_types[j]), str(dict_atom_types[k]), str(dict_atom_types[l]), kd, 0, psi0]
         imp_list.append(temp)
     if psiphase == True:
         print("---------")
-        print("WARNING: Possible problems with the phase of impropers dihedrals")
+        print("""
+    WARNING: The phase of some improper dihedrals is 180 deg or a nevative number.
+             This phase might not be understood by MD engines other than Gromacs 
+             Therefore, this energy contribution of this term might be wrong.
+             """)
         print("---------")
     return imp_list, imps
 
@@ -226,6 +237,15 @@ def _readpairs(t,dict_atom_types):
  
     print("NOTE: Pairs section is not used by the converter")
     print("---------")
+    if not len(pairs_list) == 0:
+        print("""
+    WARNING: Joyce scales LJ and electrostatic interactions according to the Pairs list.
+             Since the same scaling cannot be specified within the *pot or/and *psf file formats, 
+             the energy contributions of LJ and EI might be wrong and would need to be
+             adjusted by the user with some kind of exclusion list directly in MD engine used
+             """)
+        print("---------")
+        
     return pairs_list, pairs
 
 def _psfWriter():
